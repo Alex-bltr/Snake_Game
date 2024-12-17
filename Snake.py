@@ -3,6 +3,7 @@ import pygame
 import random
 import tkinter as tk
 from tkinter import *
+import math 
 
 class Menu:
     
@@ -29,6 +30,7 @@ class Ground:
         self.snake_start_x = 5
         self.snake_start_y = 10
         self.rectv = 30
+        self.check = True
         self.snake = [pygame.Rect(self.snake_start_x * self.rectv, self.snake_start_y * self.rectv, self.rectv-3, self.rectv-3)]
         self.Direction = "RIGHT"
         self.opossite_dir = {
@@ -37,6 +39,7 @@ class Ground:
             "UP": "DOWN",
             "DOWN": "UP"
         }
+        self.positions = []
         
        
         self.eyes_image = pygame.image.load("C:\\Users\\alexg\\Pictures\\snake_eyes0.webp").convert_alpha()
@@ -115,38 +118,39 @@ class Ground:
                         self.ground.blit(self.rotated_eyes, self.rotated_augen_f)
                         self.ground.blit(self.rotated_nose, self.rotated_Nase_f)
                 else: 
-                    pygame.draw.rect(self.ground, "#5870db", segment )
+                    pygame.draw.rect(self.ground, "#5870db", segment)
+
+
+    def move(self):
+    # Geschwindigkeit der Schlange (Schrittweite)
+        step = 3  # Die Schlange bewegt sich 3 Pixel pro Schritt
         
-        
-
-    def snake_move(self):
-        #hier werden die positionen berechnet
-        head_x, head_y = self.snake[0].x, self.snake[0].y
-
-        #if head_x % 30 == 0 and head_y % 30 == 0:
-        if self.Direction == "LEFT":
-            head_x -= self.rectv-27
-            if len(self.snake)> 1:
-                self.snake[1].x -= 27
-
-        elif self.Direction == "RIGHT":
-            head_x += self.rectv-27
-            if len(self.snake)> 1:
-                self.snake[1].x += 27
+        # Kopfbewegung basierend auf der aktuellen Richtung
+        if self.Direction == "RIGHT":
+            self.snake[0].x += step
+        elif self.Direction == "LEFT":
+            self.snake[0].x -= step
         elif self.Direction == "UP":
-            head_y -= self.rectv-27
-            if len(self.snake)> 1:
-                self.snake[1].y += 27
+            self.snake[0].y -= step
         elif self.Direction == "DOWN":
-            head_y += self.rectv-27
-            if len(self.snake)> 1:
-                self.snake[1].y -= 27
+            self.snake[0].y += step
         
-        #neue Kopfposition 
-        new_head = pygame.Rect(head_x, head_y, self.rectv, self.rectv)
-        #entweder append oder so aber wso sieht halts besser aus #
-        #gott liebe ich google
-        self.snake = [new_head] + self.snake[:-1]
+        # Überprüfen, ob die Position des Kopfes auf einem "Block" (30x30 Pixel) ist
+        # Warten, bis der Kopf exakt auf einem Vielfachen von 30px landet, bevor wir die Richtung ändern
+    
+            # Speichern der aktuellen Position des Kopfes
+        prev_x, prev_y = self.snake[0].x, self.snake[0].y
+            
+            # Die Segmente bewegen sich nun in Richtung des vorherigen Segments
+        for i in range(1, len(self.snake)):
+                # Speichern der Position des Segments
+            temp_x, temp_y = self.snake[i].x, self.snake[i].y
+                # Das Segment wird auf die Position des vorherigen Segments gesetzt
+            self.snake[i].x, self.snake[i].y = prev_x, prev_y
+                # Die vorherige Position wird für das nächste Segment aktualisiert
+            prev_x, prev_y = temp_x, temp_y
+        
+
 
     def borderpatrol(self):
         if (self.snake[0].x < 0 or self.snake[0].x >= self.col_num * self.rectv or 
@@ -168,7 +172,46 @@ class Ground:
             for col in range(self.col_num):
                 color = "#b5d567" if (col + row) % 2 == 0 else "#adcf60"
                 pygame.draw.rect(self.ground, color, pygame.Rect(col * self.rectv, row * self.rectv, self.rectv, self.rectv))
+    def check_grid(self):
+        if self.snake[0].x % 30 == 0 and self.snake[0].y % 30 == 0:
+            self.check = True
+        else:
+            self.check = False
+    def perfect_point_reached_x(self):
+        current_pos_x = self.snake[0].x
         
+        perfect_point_x = math.ceil(current_pos_x/30)*30
+        
+        return perfect_point_x
+
+    def perfect_point_reached_y(self):
+        
+        current_pos_y = self.snake[0].y
+        
+        perfect_point_y = math.ceil(current_pos_y/30)*30
+        return  perfect_point_y
+        
+
+    def gaming(self):
+        self.make_ground()                                                                         
+        self.move()
+        berechneter_winkel = self.direction_angle(self.Direction)                
+        self.snake_spawn(berechneter_winkel)
+        self.spawn_fruit()  
+
+           
+        if self.snake[0].colliderect(self.fruit_rect): 
+            self.fruit_rect = None
+            time.sleep(0.3)
+            self.snake.append(pygame.Rect(self.snake[-1].x, self.snake[-1].y, self.rectv, self.rectv))
+            self.fruit_counter = 0
+
+        # Update
+        pygame.display.flip()
+        self.clock.tick(60)
+
+        self.borderpatrol()
+        self.end = time.time()
     def spawn(self):
         while self.running:
             self.start = time.time()
@@ -178,39 +221,27 @@ class Ground:
 
                 elif event.type == pygame.KEYDOWN:
                     self.old_dir = self.Direction
-
-                    if event.key == pygame.K_RIGHT:
-                        self.Direction = "RIGHT"
-                    elif event.key == pygame.K_LEFT:
-                        self.Direction = "LEFT"
-                    elif event.key == pygame.K_DOWN:
-                        self.Direction = "DOWN"
-                    elif event.key == pygame.K_UP:
-                        self.Direction = "UP"
-                    
-                    if self.Direction == self.opossite_dir[self.old_dir]:
-                        self.Direction = self.old_dir
-
-            # Update 
-            self.make_ground()                                                                         
-            self.snake_move()
-            berechneter_winkel = self.direction_angle(self.Direction)                
-            self.snake_spawn(berechneter_winkel)
-            self.spawn_fruit()  
-
-           
-            if self.snake[0].colliderect(self.fruit_rect): 
-                self.fruit_rect = None
-                time.sleep(0.3)
-                self.snake.append(pygame.Rect(self.snake[-1].x, self.snake[-1].y, self.rectv, self.rectv))
-                self.fruit_counter = 0
-
-            # Update
-            pygame.display.flip()
-            self.clock.tick(60)
-
-            self.borderpatrol()
-            self.end = time.time()
+                    self.check_grid()
+                    if self.check == True:
+                        if event.key == pygame.K_RIGHT:
+                            self.Direction = "RIGHT"
+                        elif event.key == pygame.K_LEFT:
+                            self.Direction = "LEFT"
+                        elif event.key == pygame.K_DOWN:
+                            self.Direction = "DOWN"
+                        elif event.key == pygame.K_UP:
+                            self.Direction = "UP"
+                        
+                        if self.Direction == self.opossite_dir[self.old_dir]:
+                            self.Direction = self.old_dir
+                    else:
+                        current_pos_x = self.snake[0].x
+                        current_pos_y = self.snake[0].y
+                        #ergebnis_x = self.perfect_point_reached()
+                        #ergebnis_y = self.perfect_point_reached
+                        while current_pos_x != self.perfect_point_reached_x() and current_pos_y != self.perfect_point_reached_y():
+                            self.gaming()
+                self.gaming()   	            
 
 if __name__ == "__main__":
     print("Starte Spiel")
